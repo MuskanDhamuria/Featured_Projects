@@ -85,6 +85,7 @@ let hasMoveTarget = false;
 const moveTarget = new THREE.Vector3();
 const MOVE_TARGET_STOP_DISTANCE = 1.2;
 let lastDistanceToMoveTarget = Infinity;
+const moveApproachDirection = new THREE.Vector2();
 
 // Renderer Stuff
 // See: https://threejs.org/docs/?q=render#api/en/constants/Renderer
@@ -498,8 +499,13 @@ function jumpCharacter(meshID) {
   }
 }
 
-function onClick() {
+function onClick(event) {
   if (touchHappened) return;
+  if (isUIEventTarget(event.target)) return;
+
+  pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+  pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
   handleInteraction();
 }
 
@@ -555,6 +561,8 @@ function onMouseMove(event) {
 }
 
 function onTouchEnd(event) {
+  if (isUIEventTarget(event.target)) return;
+
   const touch = event.changedTouches && event.changedTouches[0];
   if (!touch) return;
 
@@ -563,6 +571,16 @@ function onTouchEnd(event) {
 
   touchHappened = true;
   handleInteraction();
+}
+
+function isUIEventTarget(target) {
+  if (!target || typeof target.closest !== "function") return false;
+
+  return Boolean(
+    target.closest(
+      ".loading-screen, .enter-button, .modal, .modal-bg-overlay, .theme-mode-toggle-button, .audio-toggle-button, .mobile-control"
+    )
+  );
 }
 
 function setMoveTargetFromPointer() {
@@ -574,6 +592,13 @@ function setMoveTargetFromPointer() {
   if (groundHit.length === 0) return false;
 
   moveTarget.copy(groundHit[0].point);
+  moveApproachDirection.set(
+    moveTarget.x - character.instance.position.x,
+    moveTarget.z - character.instance.position.z
+  );
+  if (moveApproachDirection.lengthSq() > 0) {
+    moveApproachDirection.normalize();
+  }
   hasMoveTarget = true;
   lastDistanceToMoveTarget = Infinity;
   return true;
@@ -646,6 +671,7 @@ function updatePlayer() {
 function onKeyDown(event) {
   hasMoveTarget = false;
   lastDistanceToMoveTarget = Infinity;
+  moveApproachDirection.set(0, 0);
 
   if (event.code.toLowerCase() === "keyr") {
     respawnCharacter();
@@ -819,6 +845,7 @@ function handleContinuousMovement() {
   if (isManualMovement) {
     hasMoveTarget = false;
     lastDistanceToMoveTarget = Infinity;
+    moveApproachDirection.set(0, 0);
   }
 
   if (
@@ -858,12 +885,17 @@ function handleContinuousMovement() {
     );
 
     const distanceToTarget = moveDirection.length();
+    const directionProgress =
+      moveDirection.x * moveApproachDirection.x +
+      moveDirection.z * moveApproachDirection.y;
     if (
       distanceToTarget <= MOVE_TARGET_STOP_DISTANCE ||
+      directionProgress <= 0 ||
       distanceToTarget > lastDistanceToMoveTarget
     ) {
       hasMoveTarget = false;
       lastDistanceToMoveTarget = Infinity;
+      moveApproachDirection.set(0, 0);
       playerVelocity.x = 0;
       playerVelocity.z = 0;
       return;
