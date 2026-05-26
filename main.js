@@ -225,6 +225,27 @@ const intersectObjectsNames = [
   "Snorlax",
   "Chest",
 ];
+const glowingProjectNames = new Set(["Project_1", "Project_2", "Project_3"]);
+const interactiveGlowMaterials = [];
+
+function registerInteractiveGlow(rootObject) {
+  rootObject.traverse((node) => {
+    if (!node.isMesh || !node.material) return;
+
+    const materials = Array.isArray(node.material)
+      ? node.material
+      : [node.material];
+
+    materials.forEach((material) => {
+      if (!material || !("emissive" in material)) return;
+      interactiveGlowMaterials.push({
+        material,
+        baseEmissive: material.emissive.clone(),
+        baseIntensity: material.emissiveIntensity ?? 1,
+      });
+    });
+  });
+}
 
 // Loading screen and loading manager
 // See: https://threejs.org/docs/#api/en/loaders/managers/LoadingManager
@@ -300,6 +321,9 @@ loader.load(
     glb.scene.traverse((child) => {
       if (intersectObjectsNames.includes(child.name)) {
         intersectObjects.push(child);
+        if (glowingProjectNames.has(child.name)) {
+          registerInteractiveGlow(child);
+        }
       }
       if (child.isMesh) {
         child.castShadow = true;
@@ -914,6 +938,13 @@ window.addEventListener("keyup", onKeyUp);
 function animate() {
   updatePlayer();
   handleContinuousMovement();
+
+  const glowPulse = 0.05 + 0.08 * (0.5 + 0.5 * Math.sin(performance.now() * 0.004));
+  for (const entry of interactiveGlowMaterials) {
+    entry.material.emissive.copy(entry.baseEmissive);
+    entry.material.emissive.addScalar(glowPulse);
+    entry.material.emissiveIntensity = Math.max(entry.baseIntensity, 1);
+  }
 
   if (character.instance) {
     const targetCameraPosition = new THREE.Vector3(
