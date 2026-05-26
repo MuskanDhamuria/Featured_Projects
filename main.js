@@ -121,6 +121,12 @@ const audioToggleButton = document.querySelector(".audio-toggle-button");
 const firstIconTwo = document.querySelector(".first-icon-two");
 const secondIconTwo = document.querySelector(".second-icon-two");
 const modalProjectImage = document.querySelector(".modal-project-image");
+const specialMission = document.querySelector("#specialMission");
+const projectChecklist = {
+  Project_1: document.querySelector("#check-project-1"),
+  Project_2: document.querySelector("#check-project-2"),
+  Project_3: document.querySelector("#check-project-3"),
+};
 
 const PROJECT_IMAGE_BY_ID = {
   Project_1: "./media/project-1.png",
@@ -128,6 +134,7 @@ const PROJECT_IMAGE_BY_ID = {
   Project_3: "./media/project-3.png",
 };
 const projectBoardNames = new Set(["Project_1", "Project_2", "Project_3"]);
+const completedProjects = new Set();
 const textureLoader = new THREE.TextureLoader();
 const projectBoardTextures = Object.fromEntries(
   Object.entries(PROJECT_IMAGE_BY_ID).map(([projectId, imagePath]) => {
@@ -176,6 +183,16 @@ const modalContent = {
 function showModal(id) {
   const content = modalContent[id];
   if (content) {
+    if (projectBoardNames.has(id)) {
+      completedProjects.add(id);
+      if (projectChecklist[id]) {
+        projectChecklist[id].checked = true;
+      }
+      if (completedProjects.size === projectBoardNames.size) {
+        specialMission.classList.remove("hidden");
+      }
+    }
+
     modalTitle.textContent = content.title;
     modalProjectDescription.textContent = content.content;
 
@@ -233,9 +250,17 @@ function registerInteractiveGlow(rootObject) {
   rootObject.traverse((node) => {
     if (!node.isMesh || !node.material) return;
 
-    const materials = Array.isArray(node.material)
-      ? node.material
-      : [node.material];
+    node.material = Array.isArray(node.material)
+      ? node.material.map((material) =>
+          material && typeof material.clone === "function"
+            ? material.clone()
+            : material
+        )
+      : node.material && typeof node.material.clone === "function"
+      ? node.material.clone()
+      : node.material;
+
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
 
     materials.forEach((material) => {
       if (!material || !("emissive" in material)) return;
