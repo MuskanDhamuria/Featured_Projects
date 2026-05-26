@@ -165,6 +165,13 @@
   gap: 18px;
 }
 
+.modal-project-image {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border: 2px solid #fff;
+}
+
 .modal-project-description {
   font-size: 18px;
 }

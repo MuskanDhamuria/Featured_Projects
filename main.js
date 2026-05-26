@@ -114,6 +114,23 @@ const secondIcon = document.querySelector(".second-icon");
 const audioToggleButton = document.querySelector(".audio-toggle-button");
 const firstIconTwo = document.querySelector(".first-icon-two");
 const secondIconTwo = document.querySelector(".second-icon-two");
+const modalProjectImage = document.querySelector(".modal-project-image");
+
+const PROJECT_IMAGE_BY_ID = {
+  Project_1: "./media/project-1.png",
+  Project_2: "./media/project-2.png",
+  Project_3: "./media/project-3.png",
+};
+const projectBoardNames = new Set(["Project_1", "Project_2", "Project_3"]);
+const textureLoader = new THREE.TextureLoader();
+const projectBoardTextures = Object.fromEntries(
+  Object.entries(PROJECT_IMAGE_BY_ID).map(([projectId, imagePath]) => {
+    const texture = textureLoader.load(imagePath);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.flipY = false;
+    return [projectId, texture];
+  })
+);
 
 // Modal stuff
 const modalContent = {
@@ -122,18 +139,21 @@ const modalContent = {
     content:
       "Detects common security flaws such as SQL Injection, reflected XSS, and missing HTTP security headers. The tool uses a BFS-based crawler to explore web applications, test inputs in forms and parameters, and identify vulnerabilities with a risk-based scoring system (HIGH/MEDIUM/LOW). It includes features like rate limiting, stealth headers, and duplicate URL handling to simulate realistic scanning behavior, and generates detailed reports in JSON, HTML, and CSV formats for analysis.",
     link: "https://github.com/MuskanDhamuria/WebVulnerabilityScanner",
+    image: PROJECT_IMAGE_BY_ID.Project_1,
   },
   Project_2: {
     title: "ESMOS Cloud-Native Platform☁️",
     content:
       "Designed and deployed cloud-native enterprise applications on Azure Kubernetes Service (AKS) using Docker, ArgoCD GitOps, and CI/CD pipelines. Implemented TLS-secured ingress routing with NGINX Ingress and cert-manager, container orchestration, persistent storage provisioning, monitoring/log analytics, and automated deployment workflows for scalable microservice-based healthcare systems.",
     link: "https://example.com/",
+    image: PROJECT_IMAGE_BY_ID.Project_2,
   },
   Project_3: {
     title: "Koryori Hayashi🍳",
     content:
       "Developed an AI-enabled digital transformation platform for a local restaurant, integrating online ordering, analytics dashboards, inventory and pricing optimization, loyalty systems, queue management, and a machine learning-powered digital twin for operational simulation and decision support.",
     link: "https://github.com/MuskanDhamuria/Koryori_Hayashi",
+    image: PROJECT_IMAGE_BY_ID.Project_3,
   },
   Chest: {
     title: "💁‍♀️ About Me",
@@ -152,6 +172,13 @@ function showModal(id) {
   if (content) {
     modalTitle.textContent = content.title;
     modalProjectDescription.textContent = content.content;
+
+    if (content.image) {
+      modalProjectImage.src = content.image;
+      modalProjectImage.classList.remove("hidden");
+    } else {
+      modalProjectImage.classList.add("hidden");
+    }
 
     if (content.link) {
       modalVisitProjectButton.href = content.link;
@@ -245,6 +272,26 @@ const loader = new GLTFLoader(manager);
 loader.load(
   "./Portfolio.glb",
   function (glb) {
+    const applyBoardTexture = (mesh) => {
+      const projectRootName = mesh.parent?.name;
+      if (!projectBoardNames.has(projectRootName)) return;
+      const projectTexture = projectBoardTextures[projectRootName];
+      if (!projectTexture) return;
+
+      const applyTextureToMaterial = (material) => {
+        if (!material || !material.map) return;
+        mesh.material = material.clone();
+        mesh.material.map = projectTexture;
+        mesh.material.needsUpdate = true;
+      };
+
+      if (Array.isArray(mesh.material)) {
+        mesh.material.forEach(applyTextureToMaterial);
+      } else {
+        applyTextureToMaterial(mesh.material);
+      }
+    };
+
     glb.scene.traverse((child) => {
       if (intersectObjectsNames.includes(child.name)) {
         intersectObjects.push(child);
@@ -252,6 +299,7 @@ loader.load(
       if (child.isMesh) {
         child.castShadow = true;
         child.receiveShadow = true;
+        applyBoardTexture(child);
       }
 
       if (child.name === "Character") {
