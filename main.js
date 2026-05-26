@@ -80,6 +80,11 @@ const playerCollider = new Capsule(
 
 let playerVelocity = new THREE.Vector3();
 let playerOnFloor = false;
+let groundColliderMesh = null;
+let hasMoveTarget = false;
+const moveTarget = new THREE.Vector3();
+const MOVE_TARGET_STOP_DISTANCE = 1.2;
+let lastDistanceToMoveTarget = Infinity;
 
 // Renderer Stuff
 // See: https://threejs.org/docs/?q=render#api/en/constants/Renderer
@@ -313,6 +318,7 @@ loader.load(
           .add(new THREE.Vector3(0, CAPSULE_HEIGHT, 0));
       }
       if (child.name === "Ground_Collider") {
+        groundColliderMesh = child;
         colliderOctree.fromGraphNode(child);
         child.visible = false;
       }
@@ -513,6 +519,8 @@ function handleInteraction() {
         }
       }
     }
+  } else {
+    setMoveTargetFromPointer();
   }
 }
 
@@ -523,11 +531,28 @@ function onMouseMove(event) {
 }
 
 function onTouchEnd(event) {
-  pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-  pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  const touch = event.changedTouches && event.changedTouches[0];
+  if (!touch) return;
+
+  pointer.x = (touch.clientX / window.innerWidth) * 2 - 1;
+  pointer.y = -(touch.clientY / window.innerHeight) * 2 + 1;
 
   touchHappened = true;
   handleInteraction();
+}
+
+function setMoveTargetFromPointer() {
+  if (!groundColliderMesh || !character.instance) return false;
+
+  raycaster.setFromCamera(pointer, camera);
+  const groundHit = raycaster.intersectObject(groundColliderMesh, true);
+
+  if (groundHit.length === 0) return false;
+
+  moveTarget.copy(groundHit[0].point);
+  hasMoveTarget = true;
+  lastDistanceToMoveTarget = Infinity;
+  return true;
 }
 
 // Movement and Gameplay functions
@@ -595,6 +620,9 @@ function updatePlayer() {
 }
 
 function onKeyDown(event) {
+  hasMoveTarget = false;
+  lastDistanceToMoveTarget = Infinity;
+
   if (event.code.toLowerCase() === "keyr") {
     respawnCharacter();
     return;
@@ -763,8 +791,14 @@ function handleJumpAnimation() {
 function handleContinuousMovement() {
   if (!character.instance) return;
 
+  const isManualMovement = Object.values(pressedButtons).some((pressed) => pressed);
+  if (isManualMovement) {
+    hasMoveTarget = false;
+    lastDistanceToMoveTarget = Infinity;
+  }
+
   if (
-    Object.values(pressedButtons).some((pressed) => pressed) &&
+    isManualMovement &&
     !character.isMoving
   ) {
     if (!isMuted) {
@@ -785,6 +819,41 @@ function handleContinuousMovement() {
     if (pressedButtons.right) {
       playerVelocity.x -= MOVE_SPEED;
       targetRotation = -Math.PI / 2;
+    }
+
+    playerVelocity.y = JUMP_HEIGHT;
+    character.isMoving = true;
+    handleJumpAnimation();
+  }
+
+  if (hasMoveTarget && !character.isMoving && playerOnFloor) {
+    const moveDirection = new THREE.Vector3(
+      moveTarget.x - character.instance.position.x,
+      0,
+      moveTarget.z - character.instance.position.z
+    );
+
+    const distanceToTarget = moveDirection.length();
+    if (
+      distanceToTarget <= MOVE_TARGET_STOP_DISTANCE ||
+      distanceToTarget > lastDistanceToMoveTarget
+    ) {
+      hasMoveTarget = false;
+      lastDistanceToMoveTarget = Infinity;
+      playerVelocity.x = 0;
+      playerVelocity.z = 0;
+      return;
+    }
+
+    lastDistanceToMoveTarget = distanceToTarget;
+
+    moveDirection.normalize();
+    playerVelocity.x = moveDirection.x * MOVE_SPEED;
+    playerVelocity.z = moveDirection.z * MOVE_SPEED;
+    targetRotation = Math.atan2(moveDirection.x, moveDirection.z);
+
+    if (!isMuted) {
+      playSound("jumpSFX");
     }
 
     playerVelocity.y = JUMP_HEIGHT;
