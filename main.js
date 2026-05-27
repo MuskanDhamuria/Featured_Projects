@@ -158,7 +158,7 @@ const modalContent = {
     title: "ESMOS Cloud-Native Platform☁️",
     content:
       "Designed and deployed cloud-native enterprise applications on Azure Kubernetes Service (AKS) using Docker, ArgoCD GitOps, and CI/CD pipelines. Implemented TLS-secured ingress routing with NGINX Ingress and cert-manager, container orchestration, persistent storage provisioning, monitoring/log analytics, and automated deployment workflows for scalable microservice-based healthcare systems.",
-    link: "https://example.com/",
+    link: "https://muskandhamuria.my.canva.site/esmos-cloud-native-platform",
     image: PROJECT_IMAGE_BY_ID.Project_2,
   },
   Project_3: {
